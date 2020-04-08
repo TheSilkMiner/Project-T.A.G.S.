@@ -1,0 +1,6 @@
+[submodule "Document-Your-Mod-Mod"]
+	path = Document-Your-Mod-Mod
+	url = https://github.com/aaronhowser1/Document-Your-Mod-Mod
+[submodule "Boson"]
+	path = Boson
+	url = https://github.com/TheSilkMiner/Boson

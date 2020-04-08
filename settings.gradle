@@ -1,0 +1,13 @@
+rootProject.name = 'Project-TAGS' // Deprecation warnings otherwise
+
+includeBuild('Boson') {
+    dependencySubstitution {
+        substitute module('net.thesilkminer.mc:boson') with project(':')
+    }
+}
+
+includeBuild('Document-Your-Mod-Mod') {
+    dependencySubstitution {
+        substitute module('com.aaronhowser1:dymm') with project(':')
+    }
+}
