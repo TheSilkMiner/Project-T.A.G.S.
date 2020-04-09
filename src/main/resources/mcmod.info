@@ -1,0 +1,29 @@
+{
+  "modListVersion": "2",
+  "modList": [
+    {
+      "modid": "prjtags",
+      "name": "Project T.A.G.S.",
+      "description": "Project T.A.G.S. (T.A.G.S.: Auxiliary Guidance System) is a mod created in collaboration with MPD as an addon to DYMM: it allows modpack makers to specify tags that get added to tooltips in JEI, downloading them all from a central location and keeping them up to date and in sync.",
+      "version": "${version}",
+      "mcversion": "${mc_version}",
+      "url": "https://thesilkminer.net/mc-mods/project-tags",
+      "updateUrl": "Curse",
+      "authorList": [
+        "TheSilkMiner (aka Silk)"
+      ],
+      "credits": "CritFlaw for the idea, Minecraft Pack Development for the ongoing support, aaronhowser1 for DYMM",
+      "logoFile": "project_tags.png",
+      "screenshots": [
+      ],
+      "parent": "",
+      "requiredMods": [
+      ],
+      "dependencies": [
+      ],
+      "dependants": [
+      ],
+      "useDependencyInformation": "false"
+    }
+  ]
+}
