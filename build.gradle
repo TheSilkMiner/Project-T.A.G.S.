@@ -150,18 +150,13 @@ dependencies {
     /* ======================= COMPILE TIME ONLY ======================= */
 
     // Boson
-    compile(group: 'net.thesilkminer.mc', name: 'boson')
+    compile(group: 'net.thesilkminer.mc', name: 'boson') {
+        exclude group: 'deobf.curse.maven', module: 'document-your-mod-mod'
+        exclude group: 'curse.maven', module: 'document-your-mod-mod'
+    }
 
     // Document Your Mod Mod
     compile(group: 'com.aaronhowser1', name: 'dymm')
-
-    /*
-    // Fermion
-    compile name: 'Fermion-1.0.2'
-
-    // Forgelin
-    compile group: 'net.shadowfacts', name: 'Forgelin', version: '1.8.4'
-    */
 
     // JustEnoughItems API
     deobfProvided group: 'mezz.jei', name: 'jei_1.12.2', version: '4.15.0.293', classifier: 'api'
