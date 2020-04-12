@@ -40,6 +40,12 @@ val main = configuration {
                     languageKey = "prjtags.configuration.common.experimental.allow_tag_search"
                     default = false
                 }
+                "jei_index_shift"(EntryType.WHOLE_NUMBER) {
+                    comment = "Indicates at which index the tags should appear on the tooltip.\nDefault: 1. Cannot be negative.\nRequires tooltips_only_in_jei in 'display' to be true"
+                    languageKey = "prjtags.configuration.common.experimental.jei_index_shift"
+                    default = 1
+                    bounds(0, Integer.MAX_VALUE - 1)
+                }
             }
         }
         "update" {

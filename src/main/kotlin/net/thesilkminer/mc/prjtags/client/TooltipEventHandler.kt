@@ -27,6 +27,7 @@ object TooltipEventHandler {
 
     private val showTooltips = reloadableLazy { main["display"]["show_tooltip"]().boolean }
     private val showOnlyInJei = reloadableLazy { main["display"]["tooltips_only_in_jei"]().boolean }
+    private val indexShift = reloadableLazy { main["experimental"]["jei_index_shift"]().int }
 
     private val targetEntries = mutableMapOf<Target, MutableList<Pair<TextFormatting, String>>>()
 
@@ -99,6 +100,7 @@ object TooltipEventHandler {
     fun onConfigReload(e: ConfigChangedEvent) {
         this.showTooltips.reload()
         this.showOnlyInJei.reload()
+        this.indexShift.reload()
         l.info("Reloaded configuration")
     }
 
@@ -106,14 +108,17 @@ object TooltipEventHandler {
     fun onGenericTooltipEvent(e: ItemTooltipEvent) = if (this.showTooltips.value && !this.showOnlyInJei.value) this.onTooltipEvent(e.itemStack, e.toolTip) else Unit
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    fun onJeiTooltipEvent(e: JeiItemTooltipEvent) = if (this.showTooltips.value && this.showOnlyInJei.value) this.onTooltipEvent(e.stack, e.tooltip) else Unit
+    fun onJeiTooltipEvent(e: JeiItemTooltipEvent) = if (this.showTooltips.value && this.showOnlyInJei.value) this.onTooltipEvent(e.stack, e.tooltip, this.indexShift.value) else Unit
 
-    private fun onTooltipEvent(stack: ItemStack, lines: MutableList<String>) {
+    private fun onTooltipEvent(stack: ItemStack, lines: MutableList<String>, index: Int = -1) {
         val tags = this.tagsCache[stack].map { "${it.first}#${I18n.format(it.second)}${TextFormatting.RESET}" }
         val additionalLines = Array(ceil(tags.count().toDouble() / 3.0).toInt()) { "" }
-        tags.forEachIndexed { index, tag -> additionalLines[index / 3] += "$tag " }
-        lines += additionalLines.toList()
-        return
+        tags.forEachIndexed { i, tag -> additionalLines[i / 3] += "$tag " }
+        if (index < 0) {
+            lines += additionalLines.toList()
+            return
+        }
+        additionalLines.reversed().forEach { lines.add(index, it) }
     }
 
     internal fun populateWithData(data: String, color: String, targets: Set<Target>) {
