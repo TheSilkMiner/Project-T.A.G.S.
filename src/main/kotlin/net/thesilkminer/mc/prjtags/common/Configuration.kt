@@ -51,6 +51,7 @@ val main = configuration {
                     comment = "Whether the automatic updates should be enabled or not. This setting must be set to true for it to work."
                     languageKey = "prjtags.configuration.common.update.enable"
                     default = true
+                    requiresGameRestart()
                 }
             }
         }
