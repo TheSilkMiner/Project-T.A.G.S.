@@ -18,16 +18,16 @@ import net.minecraftforge.registries.IForgeRegistryEntry
 import net.thesilkminer.mc.boson.api.id.NameSpacedString
 import net.thesilkminer.mc.prjtags.MOD_ID
 
-internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String) : IForgeRegistryEntry.Impl<DocumentationEntry>(), DocumentationEntry {
+internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String, tagColor: String) : IForgeRegistryEntry.Impl<DocumentationEntry>(), DocumentationEntry {
     @get:JvmName("$") private val targets by lazy { targetsArray.parseTargets() }
-    private val data by lazy { tagName.createData() }
+    private val data by lazy { tagName.createData(tagColor) }
 
     override fun getTargets(): Set<Target> = this.targets
     override fun getDocumentationData(): Set<DocumentationData> = this.data
     override fun getDependencies(): Set<Dependency> = setOf()
 
     private fun JsonArray.parseTargets(): Set<Target> {
-        if (this.count() <= 1) throw JsonParseException("A tag declaration must have at least one target!")
+        if (this.count() < 1) throw JsonParseException("A tag declaration must have at least one target!")
         return this.asSequence().map { it.convertToTarget() }.flatten().toSet()
     }
 
@@ -86,9 +86,9 @@ internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String) :
     private fun JsonObject.convertToTarget() =
             this@TagDocumentationEntry.globalState().let { it.getTargetFactory(ResourceLocation(JsonUtilities.getString(this, "type"))).fromJson(it, this) }.toSet()
 
-    private fun String.createData(): Set<DocumentationData> = setOf(this.createGenericData(), this.createTooltipData())
-    private fun String.createGenericData(): DocumentationData = TagDocumentationData(NameSpacedString(MOD_ID, "tag_data"), listOf(this))
-    private fun String.createTooltipData(): DocumentationData = TagDocumentationData(NameSpacedString(MOD_ID, "tooltip"), listOf("prjtags.tag.$this.name"))
+    private fun String.createData(color: String): Set<DocumentationData> = setOf(this.createGenericData(color), this.createTooltipData(color))
+    private fun String.createGenericData(color: String): DocumentationData = TagDocumentationData(NameSpacedString(MOD_ID, "tag_data"), listOf(this, color))
+    private fun String.createTooltipData(color: String): DocumentationData = TagDocumentationData(NameSpacedString(MOD_ID, "tooltip"), listOf("prjtags.tag.$this.name", color))
 
     private fun globalState() = ApiBindings.getMainApi().currentLoadingState!!
 }

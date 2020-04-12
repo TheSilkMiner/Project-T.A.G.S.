@@ -28,7 +28,7 @@ object TooltipEventHandler {
     private val showTooltips = reloadableLazy { main["display"]["show_tooltip"]().boolean }
     private val showOnlyInJei = reloadableLazy { main["display"]["tooltips_only_in_jei"]().boolean }
 
-    private val targetEntries = mutableMapOf<Target, MutableList<String>>()
+    private val targetEntries = mutableMapOf<Target, MutableList<Pair<TextFormatting, String>>>()
 
     private val documentationCache = CacheBuilder.newBuilder()
             .expireAfterAccess(5, TimeUnit.MINUTES)
@@ -51,11 +51,11 @@ object TooltipEventHandler {
     private val tagsCache = CacheBuilder.newBuilder()
             .expireAfterAccess(3, TimeUnit.SECONDS)
             .expireAfterWrite(5, TimeUnit.SECONDS)
-            .build(object: CacheLoader<ItemStack, List<String>>() {
-                override fun load(key: ItemStack): List<String> {
+            .build(object: CacheLoader<ItemStack, List<Pair<TextFormatting, String>>>() {
+                override fun load(key: ItemStack): List<Pair<TextFormatting, String>> {
                     val registryName = key.item.registryName?.toNameSpacedString() ?: return listOf()
                     val candidates = this@TooltipEventHandler.documentationCache[registryName]
-                    val lines = mutableListOf<String>()
+                    val lines = mutableListOf<Pair<TextFormatting, String>>()
 
                     candidates.forEach { candidate ->
                         var matches = false
@@ -103,20 +103,22 @@ object TooltipEventHandler {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    fun onGenericTooltipEvent(e: ItemTooltipEvent) = if (this.showTooltips.value && this.showOnlyInJei.value) this.onTooltipEvent(e.itemStack, e.toolTip) else Unit
+    fun onGenericTooltipEvent(e: ItemTooltipEvent) = if (this.showTooltips.value && !this.showOnlyInJei.value) this.onTooltipEvent(e.itemStack, e.toolTip) else Unit
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     fun onJeiTooltipEvent(e: JeiItemTooltipEvent) = if (this.showTooltips.value && this.showOnlyInJei.value) this.onTooltipEvent(e.stack, e.tooltip) else Unit
 
     private fun onTooltipEvent(stack: ItemStack, lines: MutableList<String>) {
-        val tags = this.tagsCache[stack].map { "${TextFormatting.DARK_AQUA}#${I18n.format(it)}${TextFormatting.RESET}" }
+        val tags = this.tagsCache[stack].map { "${it.first}#${I18n.format(it.second)}${TextFormatting.RESET}" }
         val additionalLines = Array(ceil(tags.count().toDouble() / 3.0).toInt()) { "" }
         tags.forEachIndexed { index, tag -> additionalLines[index / 3] += "$tag " }
         lines += additionalLines.toList()
         return
     }
 
-    internal fun populateWithData(data: String, targets: Set<Target>) {
-        targets.forEach { this.targetEntries.computeIfAbsent(it) { mutableListOf() } += data }
+    internal fun populateWithData(data: String, color: String, targets: Set<Target>) {
+        targets.forEach { this.targetEntries.computeIfAbsent(it) { mutableListOf() } += Pair(color.convert(), data) }
     }
+
+    private fun String.convert() = TextFormatting.getValueByName(this) ?: TextFormatting.DARK_AQUA
 }

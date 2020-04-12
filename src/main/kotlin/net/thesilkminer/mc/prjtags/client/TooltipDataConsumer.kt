@@ -32,7 +32,7 @@ internal class TooltipDataConsumer : DocumentationDataConsumer {
     }
 
     private fun consumeTooltip(data: List<String>, targets: Set<Target>) {
-        onlyOn(Distribution.CLIENT) { { TooltipEventHandler.populateWithData(data[0], targets) } }
+        onlyOn(Distribution.CLIENT) { { TooltipEventHandler.populateWithData(data[0], data[1], targets) } }
     }
 
     @Suppress("UNUSED_PARAMETER")
