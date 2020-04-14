@@ -30,6 +30,7 @@ public final class ProjectTagsLaunchPlugin extends AbstractLaunchPlugin {
     }
 
     private void registerTransformers() {
+        this.registerTransformer(new IngredientFilterTransformer(this));
         this.registerTransformer(new IngredientRendererTransformer(this));
     }
 }

@@ -26,7 +26,7 @@ val main = configuration {
                 "tooltips_only_in_jei"(EntryType.BOOLEAN) {
                     comment = "If this is enabled, tooltips will be shown only in the JustEnoughItems GUI, instead of everywhere.\nRequires show_tooltip to be set to true"
                     languageKey = "prjtags.configuration.common.display.tooltips_only_in_jei"
-                    default = false
+                    default = true
                 }
             }
         }
