@@ -21,15 +21,6 @@ internal class TagDocumentationLoader : DocumentationLoader {
 
     override fun loadFromJson(`object`: JsonObject) = this.load(`object`) // Bad naming, I don't want to deal with back-ticks everywhere
 
-    override fun onGlobalLoadingStateUnbinding() {
-        ApiBindings.getMainApi()
-                .documentationRegistry
-                .valuesCollection
-                .asSequence()
-                .filter { it is TagDocumentationEntry }
-                .forEach { it.targets }
-    }
-
     private fun load(jsonObject: JsonObject): DocumentationEntry? {
         if (!this.doConditionsPass(JsonUtilities.getJsonArrayOrElse(jsonObject, "conditions", ::JsonArray))) return null
         val targets = JsonUtilities.getJsonArray(jsonObject, "targets")
