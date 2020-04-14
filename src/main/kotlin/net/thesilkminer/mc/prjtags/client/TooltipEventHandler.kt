@@ -5,20 +5,21 @@ import com.aaronhowser1.dymm.api.documentation.DocumentationEntry
 import com.aaronhowser1.dymm.api.documentation.Target
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
-import net.minecraft.client.resources.I18n
 import net.minecraft.item.ItemStack
-import net.minecraft.util.text.TextFormatting
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.client.event.ConfigChangedEvent
 import net.minecraftforge.fml.common.eventhandler.EventPriority
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.thesilkminer.kotlin.commons.lang.reloadableLazy
 import net.thesilkminer.mc.boson.api.id.NameSpacedString
+import net.thesilkminer.mc.boson.api.locale.Color
+import net.thesilkminer.mc.boson.api.locale.toLocale
 import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.boson.prefab.naming.toNameSpacedString
 import net.thesilkminer.mc.prjtags.MOD_NAME
 import net.thesilkminer.mc.prjtags.client.jei.JeiItemTooltipEvent
 import net.thesilkminer.mc.prjtags.common.main
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
 
@@ -29,7 +30,7 @@ object TooltipEventHandler {
     private val showOnlyInJei = reloadableLazy { main["display"]["tooltips_only_in_jei"]().boolean }
     private val indexShift = reloadableLazy { main["experimental"]["jei_index_shift"]().int }
 
-    private val targetEntries = mutableMapOf<Target, MutableList<Pair<TextFormatting, String>>>()
+    private val targetEntries = mutableMapOf<Target, MutableList<Pair<Color, String>>>()
 
     private val documentationCache = CacheBuilder.newBuilder()
             .expireAfterAccess(5, TimeUnit.MINUTES)
@@ -52,11 +53,11 @@ object TooltipEventHandler {
     private val tagsCache = CacheBuilder.newBuilder()
             .expireAfterAccess(3, TimeUnit.SECONDS)
             .expireAfterWrite(5, TimeUnit.SECONDS)
-            .build(object: CacheLoader<ItemStack, List<Pair<TextFormatting, String>>>() {
-                override fun load(key: ItemStack): List<Pair<TextFormatting, String>> {
+            .build(object: CacheLoader<ItemStack, List<Pair<Color, String>>>() {
+                override fun load(key: ItemStack): List<Pair<Color, String>> {
                     val registryName = key.item.registryName?.toNameSpacedString() ?: return listOf()
                     val candidates = this@TooltipEventHandler.documentationCache[registryName]
-                    val lines = mutableListOf<Pair<TextFormatting, String>>()
+                    val lines = mutableListOf<Pair<Color, String>>()
 
                     candidates.forEach { candidate ->
                         var matches = false
@@ -111,7 +112,7 @@ object TooltipEventHandler {
     fun onJeiTooltipEvent(e: JeiItemTooltipEvent) = if (this.showTooltips.value && this.showOnlyInJei.value) this.onTooltipEvent(e.stack, e.tooltip, this.indexShift.value) else Unit
 
     private fun onTooltipEvent(stack: ItemStack, lines: MutableList<String>, index: Int = -1) {
-        val tags = this.tagsCache[stack].map { "${it.first}#${I18n.format(it.second)}${TextFormatting.RESET}" }
+        val tags = this.findFormattedTagNamesFor(stack)
         val additionalLines = Array(ceil(tags.count().toDouble() / 3.0).toInt()) { "" }
         tags.forEachIndexed { i, tag -> additionalLines[i / 3] += "$tag " }
         if (index < 0) {
@@ -121,9 +122,33 @@ object TooltipEventHandler {
         additionalLines.reversed().forEach { lines.add(index, it) }
     }
 
+    private fun findTagsFor(stack: ItemStack) = this.tagsCache[stack]
+    @Suppress("unused") fun findPlainTagNamesFor(stack: ItemStack) = this.findTagsFor(stack).map { it.second.toLocale().toLowerCase(Locale.ENGLISH) }
+    @Suppress("WeakerAccess") internal fun findFormattedTagNamesFor(stack: ItemStack) =
+            this.findTagsFor(stack).map { "#%s".toLocale(it.second.toLocale(), color = it.first) }
+
     internal fun populateWithData(data: String, color: String, targets: Set<Target>) {
         targets.forEach { this.targetEntries.computeIfAbsent(it) { mutableListOf() } += Pair(color.convert(), data) }
     }
 
-    private fun String.convert() = TextFormatting.getValueByName(this) ?: TextFormatting.DARK_AQUA
+    private fun String.convert() = when (this) {
+        "aqua" -> Color.AQUA
+        "black" -> Color.BLACK
+        "blue" -> Color.BLUE
+        "dark_aqua" -> Color.DARK_AQUA
+        "dark_blue" -> Color.DARK_BLUE
+        "dark_gray" -> Color.DARK_GRAY
+        "dark_green" -> Color.DARK_GREEN
+        "dark_purple" -> Color.DARK_PURPLE
+        "dark_red" -> Color.DARK_RED
+        "gold" -> Color.GOLD
+        "gray" -> Color.GRAY
+        "green" -> Color.GREEN
+        "purple" -> Color.PURPLE
+        "red" -> Color.RED
+        "white" -> Color.WHITE
+        "yellow" -> Color.YELLOW
+        "light_purple" -> Color.PURPLE.also { l.warn("Color 'light_purple' is deprecated: use 'purple' instead!") }
+        else -> Color.DEFAULT
+    }
 }
