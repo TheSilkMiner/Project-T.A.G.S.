@@ -59,6 +59,12 @@ val main = configuration {
                     default = true
                     requiresGameRestart()
                 }
+                "target_branch"(EntryType.STRING) {
+                    comment = "Which branch the automatic updater should target when querying for updates"
+                    languageKey = "prjtags.configuration.common.update.target_branch"
+                    default = "master"
+                    requiresGameRestart()
+                }
             }
         }
     }

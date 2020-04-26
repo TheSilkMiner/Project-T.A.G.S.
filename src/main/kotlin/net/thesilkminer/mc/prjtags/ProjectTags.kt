@@ -9,6 +9,7 @@ import net.thesilkminer.mc.boson.api.event.BosonPreAvailableEvent
 import net.thesilkminer.mc.boson.api.fingerprint.logViolationMessage
 import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.prjtags.common.dymm.TagDocumentationEntry
+import net.thesilkminer.mc.prjtags.common.update.startUpdateSchedule
 
 @Mod(modid = MOD_ID, name = MOD_NAME, version = MOD_VERSION, dependencies = MOD_DEPENDENCIES,
         acceptedMinecraftVersions = MOD_MC_VERSION, certificateFingerprint = MOD_CERTIFICATE_FINGERPRINT,
@@ -18,7 +19,8 @@ object ProjectTags {
 
     @Mod.EventHandler
     fun onPreInitialization(e: FMLPreInitializationEvent) {
-        l.info("Preinit")
+        l.info("PreInitialization")
+        startUpdateSchedule()
     }
 
     @Mod.EventHandler
