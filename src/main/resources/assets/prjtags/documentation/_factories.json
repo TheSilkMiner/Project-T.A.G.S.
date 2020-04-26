@@ -1,0 +1,6 @@
+{
+  "condition": {
+    "mc": "net.thesilkminer.mc.prjtags.common.dymm.PlatformVersionConditionFactory",
+    "slug": "net.thesilkminer.mc.prjtags.common.dymm.SlugConditionFactory"
+  }
+}
