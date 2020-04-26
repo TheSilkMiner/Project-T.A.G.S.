@@ -121,10 +121,6 @@ repositories {
         url 'https://maven.blamejared.com/'
     }
     maven {
-        name 'ModMaven'
-        url 'https://modmaven.k-4u.nl/'
-    }
-    maven {
         name 'Progwml6 maven'
         url 'https://dvs1.progwml6.com/files/maven/'
     }
@@ -132,11 +128,24 @@ repositories {
         name 'ShadowFacts'
         url 'http://maven.shadowfacts.net/'
     }
+    maven {
+        name 'TehNut'
+        url 'http://tehnut.info/maven'
+    }
+    maven {
+        name 'Tterrag'
+        url 'http://maven.tterrag.com/'
+    }
     flatDir {
         dirs 'libs'
     }
     flatDir {
         dirs 'Boson/libs' // TODO: Remove this once I get a Maven
+    }
+    // Moved to the bottom to ensure that this is the last place we look into
+    maven {
+        name 'ModMaven'
+        url 'https://modmaven.k-4u.nl/'
     }
 }
 
