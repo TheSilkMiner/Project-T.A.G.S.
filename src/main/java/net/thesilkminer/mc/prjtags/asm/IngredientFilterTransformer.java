@@ -351,7 +351,7 @@ final class IngredientFilterTransformer extends AbstractTransformer {
         //  private static final synthetic <fermion-lambda:new:10>()Lmezz/jei/config/Config$SearchMode;
         //   L0
         //    LINENUMBER 450 L0
-        //    INVOKESTATIC net/thesilkminer/mc/prjtags/common/C.getMain ()Lnet/thesilkminer/mc/boson/api/configuration/Configuration;
+        //    INVOKESTATIC net/thesilkminer/mc/prjtags/client/C.getClient ()Lnet/thesilkminer/mc/boson/api/configuration/Configuration;
         //    LDC "experimental"
         //    ICONST_0
         //    ANEWARRAY java/lang/String
@@ -386,7 +386,7 @@ final class IngredientFilterTransformer extends AbstractTransformer {
             final Label l1 = new Label();
             super.visitLabel(l0);
             super.visitLineNumber(4 * 100 + 5 * 10, l0);
-            super.visitMethodInsn(Opcodes.INVOKESTATIC, "net/thesilkminer/mc/prjtags/common/C", "getMain", "()Lnet/thesilkminer/mc/boson/api/configuration/Configuration;", false);
+            super.visitMethodInsn(Opcodes.INVOKESTATIC, "net/thesilkminer/mc/prjtags/client/C", "getClient", "()Lnet/thesilkminer/mc/boson/api/configuration/Configuration;", false);
             super.visitLdcInsn("experimental");
             super.visitInsn(Opcodes.ICONST_0);
             super.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/String");

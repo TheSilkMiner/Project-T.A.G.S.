@@ -6,13 +6,15 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64
 import net.minecraft.client.Minecraft
 import net.minecraftforge.fml.common.ProgressManager
 import net.thesilkminer.mc.boson.api.distribution.Distribution
 import net.thesilkminer.mc.boson.api.distribution.onlyOn
 import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.prjtags.MOD_NAME
-import net.thesilkminer.mc.prjtags.common.main
+import net.thesilkminer.mc.prjtags.common.common
+import net.thesilkminer.mc.prjtags.common.protocol
 import net.thesilkminer.mc.prjtags.common.sql.LAST_COMMIT_QUERY
 import net.thesilkminer.mc.prjtags.common.sql.StatusVariables
 import net.thesilkminer.mc.prjtags.common.sql.transaction
@@ -41,7 +43,7 @@ internal fun startUpdateSchedule() {
     l.info("Setting up self-update checks")
     val domain = Paths.get(".").resolve("./resources/assets/prjtags/")
     prepareDirectories(domain)
-    if (!main["update"]["enable"]().boolean) {
+    if (!common["update"]["enable"]().boolean) {
         l.info("Aborting self-update schedule as requested through configuration file")
         return
     }
@@ -76,31 +78,40 @@ private fun checkForUpdates(): UpdateResponse {
                 .single()[StatusVariables.varcharValue]
     }
 
-    var targetedBranch = main["update"]["target_branch"]().string
+    var targetedBranch = common["update"]["target_branch"]().string
 
-    val githubQuery = runGitHubQuery(HeadData::class) {
-        val isDefaultBranch = targetedBranch == GH_DEF_BRANCH
+    val remoteQuery = runRemoteQuery(HeadData::class) {
+        val fallback = btoa(protocol["protocol_data"]["protocol_fallback"]().string)
+        val isDefaultBranch = targetedBranch == fallback || !protocol["protocol_data"]["allow_fallback"]().boolean
         val logFunction = { it: String -> l.bigWarn(it) }
-        queryHeadsAndRefs(targetedBranch, logFunction) ?: if (isDefaultBranch) null else queryHeadsAndRefs(GH_DEF_BRANCH, logFunction).also { targetedBranch = GH_DEF_BRANCH }
+        queryHeadsAndRefs(targetedBranch, logFunction) ?: if (isDefaultBranch) null else queryHeadsAndRefs(fallback, logFunction).also { targetedBranch = fallback }
     }
 
     return UpdateResponse(
-            hasUpdates = storedCommit == null || (githubQuery != null && storedCommit != githubQuery.latestCommit.sha),
-            remoteData = githubQuery,
+            hasUpdates = storedCommit == null || (remoteQuery != null && storedCommit != remoteQuery.latestCommit.sha),
+            remoteData = remoteQuery,
             localCommitData = storedCommit,
             targetedBranch = targetedBranch
     )
 }
 
-private fun <T : Any> runGitHubQuery(responseClass: KClass<T>, query: () -> String?): T? = Gson().fromJson(query(), responseClass.java)
+private fun <T : Any> runRemoteQuery(responseClass: KClass<T>, query: () -> String?): T? = Gson().fromJson(query(), responseClass.java)
 
-private fun queryHeadsAndRefs(queryBranch: String, onError: (String) -> Unit) =
-        runGhUrlQuery("repos/$GH_USER/$GH_APP/git/refs/heads/$queryBranch") {
-            onError("An error has occurred while querying HEAD for target repository '@' branch '$queryBranch'\n${it::class.qualifiedName}: ${it.message}")
-        }
+private fun queryHeadsAndRefs(queryBranch: String, onError: (String) -> Unit): String? {
+    val (user, app) = btoa(protocol["protocol_data"]["protocol_connection_data"]().string).split('%')
+    return runApiUrlQuery(buildRemoteQuery(user, app, queryBranch)) {
+        onError("An error has occurred while querying HEAD for target repository '@' branch '$queryBranch'\n${it::class.qualifiedName}: ${it.message}")
+    }
+}
 
-private fun runGhUrlQuery(url: String, onError: (IOException) -> Unit) = runUrlQuery("https://api.github.com/$url", onError)
+@Suppress("SameParameterValue")
+private fun buildRemoteQuery(user: String, app: String, branch: String) = btoa(protocol["protocol_data"]["query_data"]().string)
+        .replace(":user", user).replace(":app", app).replace(":target", branch)
+
+private fun runApiUrlQuery(url: String, onError: (IOException) -> Unit) = runUrlQuery("${btoa(protocol["protocol_data"]["entry_point"]().string)}$url", onError)
 private fun runUrlQuery(url: String, onError: (IOException) -> Unit) = try { URL(url).readText() } catch (e: IOException) { onError(e).let { null } }
+
+@Suppress("SpellCheckingInspection") private fun btoa(`in`: String) = String(Base64.decode(`in`))
 
 private fun runUpdateRoutine(updateResponse: UpdateResponse, domain: Path, bar: ProgressManager.ProgressBar) {
     if (updateResponse.localCommitData == null) {
@@ -173,7 +184,9 @@ private fun downloadRepositoryZip(domain: Path, targetedBranch: String): Path? =
     val temporaryPath = domain.resolve("./documentation/update_package.zip").toAbsolutePath()
     deleteZip(temporaryPath)
     l.info("Beginning download of update package: file will be saved in '$temporaryPath'")
-    val bytes = URL("https://github.com/$GH_USER/$GH_APP/archive/$targetedBranch.zip").openStream().use { urlStream ->
+    val (user, app) = btoa(protocol["protocol_data"]["protocol_connection_data"]().string).split('%')
+    val url = btoa(protocol["protocol_data"]["update_package"]().string).replace(":user", user).replace(":app", app).replace(":branch", targetedBranch)
+    val bytes = URL(url).openStream().use { urlStream ->
         Channels.newChannel(urlStream).use { remoteChannel ->
             FileOutputStream(temporaryPath.toFile()).use { output ->
                 output.channel.transferFrom(remoteChannel, 0, Long.MAX_VALUE)
@@ -188,12 +201,13 @@ private fun downloadRepositoryZip(domain: Path, targetedBranch: String): Path? =
 }
 
 private fun extractRepositoryDataToDomain(zip: Path, domain: Path, branch: String): Map<String, JsonObject> {
+    val (_, app) = btoa(protocol["protocol_data"]["protocol_connection_data"]().string).split('%')
     val repo = domain.resolve("./documentation/repo").toAbsolutePath()
     Files.createDirectories(repo)
     l.info("Extracting ZIP file in repository directory")
     val languagesMap = mutableMapOf<String, JsonObject>()
     FileSystems.newFileSystem(zip, null).use { fs ->
-        val root = fs.getPath("/$GH_APP-${branch.replace('/', '-')}")
+        val root = fs.getPath("/$app-${branch.replace('/', '-')}")
         val tags = root.resolve("./tags").normalize()
         val lang = root.resolve("./lang").normalize()
         Files.walk(tags).asSequence()

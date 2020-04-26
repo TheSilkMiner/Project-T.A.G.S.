@@ -7,44 +7,28 @@ import net.thesilkminer.mc.boson.api.configuration.EntryType
 import net.thesilkminer.mc.boson.api.configuration.configuration
 import net.thesilkminer.mc.prjtags.MOD_ID
 
-val main = configuration {
+val common = configuration {
     owner = MOD_ID
-    name = "main"
+    name = "common"
     type = ConfigurationFormat.FORGE_CONFIG
 
     categories {
-        "display" {
-            comment = "Manages where and how the tags should be displayed"
-            languageKey = "prjtags.configuration.common.display"
+        "pack" {
+            comment = "Manages settings for modpacks"
+            languageKey = "prjtags.configuration.common.pack"
 
             entries {
-                "show_tooltip"(EntryType.BOOLEAN) {
-                    comment = "If this is enabled, tags will show on the tooltips of items"
-                    languageKey = "prjtags.configuration.common.display.show_tooltip"
-                    default = true
+                "slug"(EntryType.STRING) {
+                    comment = "The slug that uniquely identifies this pack. Leave empty for no slug.\nBy convention, this corresponds to the CurseForge slug"
+                    languageKey = "prjtags.configuration.common.pack.slug"
+                    default = ""
+                    requiresGameRestart()
                 }
-                "tooltips_only_in_jei"(EntryType.BOOLEAN) {
-                    comment = "If this is enabled, tooltips will be shown only in the JustEnoughItems GUI, instead of everywhere.\nRequires show_tooltip to be set to true"
-                    languageKey = "prjtags.configuration.common.display.tooltips_only_in_jei"
-                    default = true
-                }
-            }
-        }
-        "experimental" {
-            comment = "A set of experimental features that may or may not work: enable at own risk"
-            languageKey = "prjtags.configuration.common.experimental"
-
-            entries {
-                "allow_tag_search"(EntryType.BOOLEAN) {
-                    comment = "If enabled, tags will be searchable in JEI with a `_` prefix: note that this won't disable tag tooltips in JEI, even if they're effectively useless"
-                    languageKey = "prjtags.configuration.common.experimental.allow_tag_search"
-                    default = false
-                }
-                "jei_index_shift"(EntryType.WHOLE_NUMBER) {
-                    comment = "Indicates at which index the tags should appear on the tooltip.\nDefault: 1. Cannot be negative.\nRequires tooltips_only_in_jei in 'display' to be true"
-                    languageKey = "prjtags.configuration.common.experimental.jei_index_shift"
-                    default = 1
-                    bounds(0, Integer.MAX_VALUE - 1)
+                "valid_slugs"(EntryType.LIST_OF_STRINGS) {
+                    comment = "A set of other slugs that this pack wants to load even if they don't correspond to the actual slug.\nThere is no need to specify the pack slug again."
+                    languageKey = "prjtags.configuration.common.pack.valid_slugs"
+                    default = listOf<String>()
+                    requiresGameRestart()
                 }
             }
         }
@@ -60,7 +44,7 @@ val main = configuration {
                     requiresGameRestart()
                 }
                 "target_branch"(EntryType.STRING) {
-                    comment = "Which branch the automatic updater should target when querying for updates"
+                    comment = "Which branch the automatic updater should target when querying for updates.\nTo change repository, refer to `protocol.json`."
                     languageKey = "prjtags.configuration.common.update.target_branch"
                     default = "master"
                     requiresGameRestart()

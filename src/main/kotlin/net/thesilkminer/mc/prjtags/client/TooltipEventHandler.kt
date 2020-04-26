@@ -18,7 +18,6 @@ import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.boson.prefab.naming.toNameSpacedString
 import net.thesilkminer.mc.prjtags.MOD_NAME
 import net.thesilkminer.mc.prjtags.client.jei.JeiItemTooltipEvent
-import net.thesilkminer.mc.prjtags.common.main
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.ceil
@@ -26,9 +25,9 @@ import kotlin.math.ceil
 object TooltipEventHandler {
     private val l = L(MOD_NAME, "Tooltip Handler")
 
-    private val showTooltips = reloadableLazy { main["display"]["show_tooltip"]().boolean }
-    private val showOnlyInJei = reloadableLazy { main["display"]["tooltips_only_in_jei"]().boolean }
-    private val indexShift = reloadableLazy { main["experimental"]["jei_index_shift"]().int }
+    private val showTooltips = reloadableLazy { client["display"]["show_tooltip"]().boolean }
+    private val showOnlyInJei = reloadableLazy { client["display"]["tooltips_only_in_jei"]().boolean }
+    private val indexShift = reloadableLazy { client["experimental"]["jei_index_shift"]().int }
 
     private val targetEntries = mutableMapOf<Target, MutableList<Pair<Color, String>>>()
 
