@@ -10,6 +10,7 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.client.event.ConfigChangedEvent
 import net.minecraftforge.fml.common.eventhandler.EventPriority
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import net.minecraftforge.oredict.OreDictionary
 import net.thesilkminer.kotlin.commons.lang.reloadableLazy
 import net.thesilkminer.mc.boson.api.id.NameSpacedString
 import net.thesilkminer.mc.boson.api.locale.Color
@@ -30,6 +31,7 @@ object TooltipEventHandler {
     private val indexShift = reloadableLazy { client["experimental"]["jei_index_shift"]().int }
 
     private val targetEntries = mutableMapOf<Target, MutableList<Pair<Color, String>>>()
+    private val invalidEntries = mutableMapOf<Target?, MutableList<String>>()
 
     private val documentationCache = CacheBuilder.newBuilder()
             .expireAfterAccess(5, TimeUnit.MINUTES)
@@ -64,33 +66,67 @@ object TooltipEventHandler {
                             if (matches) break
                             val stack = target.obtainTarget()
 
-                            // First we check the items
-                            matches = ItemStack.areItemsEqual(stack, key)
+                            matches = this@TooltipEventHandler.doStacksMatch(stack, key)
 
-                            if (matches && stack.hasTagCompound()) {
-                                // This item stack has a tag compound: we need to go deeper
-                                matches = ItemStack.areItemStackTagsEqual(stack, key)
-
-                                if (!matches) {
-                                    // We are going to match if and only if the "difference"
-                                    // between the two is just the display name, unless the
-                                    // second stack has itself a display name
-                                    if (key.hasDisplayName() && stack.hasDisplayName()) continue
-                                    if (!key.hasDisplayName()) continue
-
-                                    stack.setStackDisplayName(key.displayName)
-
-                                    matches = ItemStack.areItemStackTagsEqual(stack, key)
+                            if (matches) {
+                                this@TooltipEventHandler.targetEntries[target]?.let { tagData ->
+                                    tagData.forEach { tagPair ->
+                                        if (!this@TooltipEventHandler.invalidEntries.any { blackListEntry -> blackListEntry.blacklistsTag(tagPair.second, stack) }) {
+                                            lines += tagPair
+                                        }
+                                    }
                                 }
                             }
-
-                            if (matches) this@TooltipEventHandler.targetEntries[target]?.let { lines += it }
                         }
                     }
 
                     return lines
                 }
             })
+
+    private fun Map.Entry<Target?, MutableList<String>>.blacklistsTag(tag: String, currentStack: ItemStack) =
+            if (this.key == null) {
+                this.value.contains(tag)
+            } else {
+                val targetStack = this.key!!.obtainTarget()
+                if (this@TooltipEventHandler.doStacksMatch(currentStack, targetStack)) {
+                    this.value.contains("\$\$any") || this.value.contains(tag)
+                } else {
+                    false
+                }
+            }
+
+    private fun doStacksMatch(stack: ItemStack, key: ItemStack): Boolean {
+        // First we check the items
+        var matches = ItemStack.areItemsEqual(stack, key)
+
+        // Then we need to check the wildcard data, since that may be a problem
+        if (!matches && (stack.metadata == OreDictionary.WILDCARD_VALUE || key.metadata == OreDictionary.WILDCARD_VALUE)) {
+            // Since the wildcard in the ore dictionary means "match whatever", we are going to construct two stacks with
+            // the same metadata value and pass that to the function again
+            // We needn't run the tag check because the tag compound check doesn't take metadata into account
+            matches = ItemStack.areItemsEqual(ItemStack(stack.item, 1, 0), ItemStack(key.item, 1, 0))
+        }
+
+        if (matches && stack.hasTagCompound()) {
+            // This item stack has a tag compound: we need to go deeper
+            matches = ItemStack.areItemStackTagsEqual(stack, key)
+
+            if (!matches) {
+                // We are going to match if and only if the "difference"
+                // between the two is just the display name, unless the
+                // second stack has itself a display name
+                if (key.hasDisplayName() && stack.hasDisplayName()) return matches
+                if (!key.hasDisplayName()) return matches
+
+                stack.setStackDisplayName(key.displayName)
+
+                matches = ItemStack.areItemStackTagsEqual(stack, key)
+            }
+        }
+
+        return matches
+    }
 
     init {
         l.info("Successfully initialized and registered tooltip event handler")
@@ -128,6 +164,19 @@ object TooltipEventHandler {
 
     internal fun populateWithData(data: String, color: String, targets: Set<Target>) {
         targets.forEach { this.targetEntries.computeIfAbsent(it) { mutableListOf() } += Pair(color.convert(), data) }
+    }
+
+    internal fun removeDataFor(data: String, targets: Set<Target>) {
+        if (targets.count() > 0) return this.removeDataForTargetSet(data, targets)
+        this.removeDataForEverybody(data)
+    }
+
+    private fun removeDataForTargetSet(data: String, targets: Set<Target>) {
+        targets.forEach { this.invalidEntries.computeIfAbsent(it) { mutableListOf() }.add(data) }
+    }
+
+    private fun removeDataForEverybody(data: String) {
+        this.invalidEntries.computeIfAbsent(null) { mutableListOf() }.add(data)
     }
 
     private fun String.convert() = when (this) {
