@@ -31,6 +31,7 @@ import net.thesilkminer.mc.boson.api.event.BosonPreAvailableEvent
 import net.thesilkminer.mc.boson.api.fingerprint.logViolationMessage
 import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.prjtags.common.dymm.TagDocumentationEntry
+import net.thesilkminer.mc.prjtags.common.rewriteBase64Config
 import net.thesilkminer.mc.prjtags.common.update.startUpdateSchedule
 
 @Mod(modid = MOD_ID, name = MOD_NAME, version = MOD_VERSION, dependencies = MOD_DEPENDENCIES,
@@ -42,8 +43,10 @@ object ProjectTags {
     @Mod.EventHandler
     fun onPreInitialization(e: FMLPreInitializationEvent) {
         l.info("PreInitialization")
+        rewriteBase64Config()
         startUpdateSchedule()
     }
+
 
     @Mod.EventHandler
     fun onBosonPreAvailable(e: BosonPreAvailableEvent) {

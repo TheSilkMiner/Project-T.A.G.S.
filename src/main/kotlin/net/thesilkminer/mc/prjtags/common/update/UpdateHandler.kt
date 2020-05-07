@@ -28,7 +28,6 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64
 import net.minecraft.client.Minecraft
 import net.minecraftforge.fml.common.ProgressManager
 import net.thesilkminer.mc.boson.api.distribution.Distribution
@@ -133,7 +132,7 @@ private fun buildRemoteQuery(user: String, app: String, branch: String) = btoa(p
 private fun runApiUrlQuery(url: String, onError: (IOException) -> Unit) = runUrlQuery("${btoa(protocol["protocol_data"]["entry_point"]().string)}$url", onError)
 private fun runUrlQuery(url: String, onError: (IOException) -> Unit) = try { URL(url).readText() } catch (e: IOException) { onError(e).let { null } }
 
-@Suppress("SpellCheckingInspection") private fun btoa(`in`: String) = String(Base64.decode(`in`))
+@Suppress("SpellCheckingInspection") private fun btoa(`in`: String) = `in` // See ProcotolConfiguration.kt
 
 private fun runUpdateRoutine(updateResponse: UpdateResponse, domain: Path, bar: ProgressManager.ProgressBar) {
     if (updateResponse.localCommitData == null) {
