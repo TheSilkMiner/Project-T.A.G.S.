@@ -95,7 +95,7 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = '1.8'
 }
 
-version = "1.0.0" + getBuildString()
+version = "1.0.1" + getBuildString()
 group = "net.thesilkminer.mc.prjtags" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "Project-T.A.G.S."
 

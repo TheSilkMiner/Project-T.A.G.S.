@@ -39,7 +39,7 @@ public final class ProjectTagsLaunchPlugin extends AbstractLaunchPlugin {
     public void populateMetadata(@Nonnull final PluginMetadata.Builder builder) {
         builder.setName("Project T.A.G.S. ASM")
                 .setDescription("Set of tweaks for Project T.A.G.S. that allow for more fine-tuned control with JEI")
-                .setVersion("1.0.0")
+                .setVersion("1.0.1")
                 .addAuthor("TheSilkMiner")
                 .setCredits("CritFlaw for the idea, Minecraft Pack Development for the ongoing support, aaronhowser1 for DYMM")
                 .setLogoPath("project_tags.png");
