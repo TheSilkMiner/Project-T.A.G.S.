@@ -38,7 +38,9 @@ import net.minecraft.util.ResourceLocation
 import net.minecraftforge.oredict.OreDictionary
 import net.minecraftforge.registries.IForgeRegistryEntry
 import net.thesilkminer.mc.boson.api.id.NameSpacedString
+import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.prjtags.MOD_ID
+import net.thesilkminer.mc.prjtags.MOD_NAME
 
 internal class TagRemovalDocumentationEntry(targetsArray: JsonArray?, tagName: String?) : IForgeRegistryEntry.Impl<DocumentationEntry>(), DocumentationEntry {
     private companion object {
@@ -53,6 +55,7 @@ internal class TagRemovalDocumentationEntry(targetsArray: JsonArray?, tagName: S
     override fun getDependencies(): Set<Dependency> = setOf()
 
     private fun JsonArray.parseTargets(): Set<Target> {
+        this@TagRemovalDocumentationEntry.setLoggingName()
         return this.asSequence().map { it.convertToTarget() }.flatten().toSet()
     }
 
@@ -118,4 +121,10 @@ internal class TagRemovalDocumentationEntry(targetsArray: JsonArray?, tagName: S
             TagDocumentationData(NameSpacedString(MOD_ID, "tag_removal"), listOf(if (this == ANY_MARKER) ANY_MARKER else "prjtags.tag.$this.name", targetsArray.toString()))
 
     private fun globalState() = ApiBindings.getMainApi().currentLoadingState!!
+
+    private fun setLoggingName() = try {
+        this.globalState().let { it::class.java.getDeclaredField("targetId").apply { this.isAccessible = true }.set(it, this.registryName!!) }
+    } catch (e: ReflectiveOperationException) {
+        L(MOD_NAME, "TagRemovalDocumentationEntry").warn("DYMM API implementation replaced: registry names won't be correct", e)
+    }
 }

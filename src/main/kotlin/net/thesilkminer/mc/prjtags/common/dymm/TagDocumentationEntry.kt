@@ -38,7 +38,9 @@ import net.minecraft.util.ResourceLocation
 import net.minecraftforge.oredict.OreDictionary
 import net.minecraftforge.registries.IForgeRegistryEntry
 import net.thesilkminer.mc.boson.api.id.NameSpacedString
+import net.thesilkminer.mc.boson.api.log.L
 import net.thesilkminer.mc.prjtags.MOD_ID
+import net.thesilkminer.mc.prjtags.MOD_NAME
 
 internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String, tagColor: String) : IForgeRegistryEntry.Impl<DocumentationEntry>(), DocumentationEntry {
     @get:JvmName("$") private val targets by lazy { targetsArray.parseTargets() }
@@ -50,6 +52,7 @@ internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String, t
 
     private fun JsonArray.parseTargets(): Set<Target> {
         if (this.count() < 1) throw JsonParseException("A tag declaration must have at least one target!")
+        this@TagDocumentationEntry.setLoggingName()
         return this.asSequence().map { it.convertToTarget() }.flatten().toSet()
     }
 
@@ -113,4 +116,10 @@ internal class TagDocumentationEntry(targetsArray: JsonArray, tagName: String, t
     private fun String.createTooltipData(color: String): DocumentationData = TagDocumentationData(NameSpacedString(MOD_ID, "tooltip"), listOf("prjtags.tag.$this.name", color))
 
     private fun globalState() = ApiBindings.getMainApi().currentLoadingState!!
+
+    private fun setLoggingName() = try {
+        this.globalState().let { it::class.java.getDeclaredField("targetId").apply { this.isAccessible = true }.set(it, this.registryName!!) }
+    } catch (e: ReflectiveOperationException) {
+        L(MOD_NAME, "TagDocumentationEntry").warn("DYMM API implementation replaced: registry names won't be correct", e)
+    }
 }
