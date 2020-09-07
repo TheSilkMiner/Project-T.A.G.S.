@@ -45,11 +45,16 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URL
 import java.nio.channels.Channels
+import java.nio.file.CopyOption
 import java.nio.file.FileSystems
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.Locale
 import kotlin.reflect.KClass
 import kotlin.streams.asSequence
@@ -69,7 +74,7 @@ internal fun startUpdateSchedule() {
         return
     }
     l.info("Beginning self-updating routine")
-    val bar = ProgressManager.push("Self-update Routine", 10)
+    val bar = ProgressManager.push("Self-update Routine", 12)
     bar.step("Checking for updates")
     val updateCheck = checkForUpdates()
     if (updateCheck.hasUpdates) {
@@ -148,31 +153,68 @@ private fun runUpdateRoutine(updateResponse: UpdateResponse, domain: Path, bar: 
     bar.step("Downloading update package")
     val zipFileLocation = downloadRepositoryZip(domain, updateResponse.targetedBranch) ?: return
 
-    bar.step("Clearing current repository")
-    clearRepository(domain)
+    bar.step("Creating snapshot")
+    val snapshotLocation = try {
+        createSnapshot(domain)
+    } catch (e: Exception) {
+        l.warn("An error occurred while creating snapshot! We will fly blind into this... hopefully nothing will break")
+        null
+    }
 
-    bar.step("Saving local language files")
-    val languages = saveLanguages(domain)
+    try {
+        bar.step("Clearing current repository")
+        clearRepository(domain)
 
-    bar.step("Extracting update package")
-    val extractedLanguages = extractRepositoryDataToDomain(zipFileLocation, domain, updateResponse.targetedBranch)
+        bar.step("Saving local language files")
+        val languages = saveLanguages(domain)
 
-    bar.step("Deleting update package")
-    deleteZip(zipFileLocation)
+        bar.step("Extracting update package")
+        val extractedLanguages = extractRepositoryDataToDomain(zipFileLocation, domain, updateResponse.targetedBranch)
 
-    bar.step("Patching language files")
-    val mergedLanguages = mergeLanguageChanges(extractedLanguages, languages)
+        bar.step("Deleting update package")
+        deleteZip(zipFileLocation)
 
-    bar.step("Saving language files")
-    saveLanguageFiles(mergedLanguages, domain)
+        bar.step("Patching language files")
+        val mergedLanguages = mergeLanguageChanges(extractedLanguages, languages)
 
-    bar.step("Reloading language manager")
-    triggerLanguageReloading()
+        bar.step("Saving language files")
+        saveLanguageFiles(mergedLanguages, domain)
 
-    bar.step("Updating database entry")
-    updateDatabaseEntry(updateResponse.remoteData.latestCommit.sha)
+        bar.step("Reloading language manager")
+        triggerLanguageReloading()
+
+        bar.step("Updating database entry")
+        updateDatabaseEntry(updateResponse.remoteData.latestCommit.sha)
+
+        bar.step("Removing snapshot")
+        snapshotLocation?.let { removeSnapshot(it) }
+    } catch (e: Exception) {
+        l.error("An error occurred while trying to perform the update routine, rolling back to snapshot", e)
+
+        try {
+            rollbackSnapshot(snapshotLocation!!, domain) // KNPE expected
+        } catch (e: Exception) {
+            return l.error("Unable to roll back snapshot due to '${e.message}!", e)
+        }
+    }
 
     l.info("Update routine completed")
+}
+
+private fun createSnapshot(domain: Path): Path {
+    val repo = domain.resolve("./documentation/repo").toAbsolutePath()
+    val lang = domain.resolve("./lang").toAbsolutePath()
+    val snapshot = domain.resolve("./documentation_snapshot/").toAbsolutePath()
+    val repoSnapshot = snapshot.resolve("./repo").toAbsolutePath()
+    val langSnapshot = snapshot.resolve("./lang").toAbsolutePath()
+    l.info("Saving a snapshot of '$repo' into '$repoSnapshot'")
+    Files.createDirectories(repoSnapshot)
+    repo.copyRecursivelyTo(repoSnapshot, StandardCopyOption.REPLACE_EXISTING)
+    l.info("Saving a snapshot of '$lang' into '$langSnapshot'")
+    Files.createDirectories(langSnapshot)
+    lang.copyRecursivelyTo(langSnapshot, StandardCopyOption.REPLACE_EXISTING)
+    l.info("Snapshot saving completed")
+    return snapshot
 }
 
 private fun clearRepository(domain: Path) {
@@ -214,7 +256,7 @@ private fun downloadRepositoryZip(domain: Path, targetedBranch: String): Path? =
             }
         }
     }
-    l.info("Successfully downloaded a total of $bytes from the remote source into the target file")
+    l.info("Successfully downloaded a total of $bytes bytes from the remote source into the target file")
     temporaryPath
 } catch (e: IOException) {
     l.bigError("An error has occurred while downloading the update package! The updating process will be terminated!\n${e::class.qualifiedName}: ${e.message}")
@@ -237,6 +279,7 @@ private fun extractRepositoryDataToDomain(zip: Path, domain: Path, branch: Strin
                     val relativePath = tags.relativize(it).normalize()
                     val outputPath = repo.resolve(relativePath.toString()).toAbsolutePath().normalize()
                     Files.newBufferedReader(it).use { input ->
+                        outputPath.parent?.let { directory -> if (Files.notExists(directory)) Files.createDirectories(directory) }
                         Files.newBufferedWriter(outputPath, StandardOpenOption.CREATE_NEW).use { output ->
                             output.write(input.lineSequence().joinToString(separator = "\n"))
                         }
@@ -325,5 +368,66 @@ private fun updateDatabaseEntry(remoteSha: String) {
     l.info("Successfully updated database entry to remote commit target '$remoteSha'")
 }
 
-private fun Path.deleteRecursively() = Files.walk(this).use { it.asSequence().sortedDescending().forEach { path -> path.deleteSafely() } }
+private fun removeSnapshot(snapLocation: Path) {
+    l.info("Removing snapshot from '$snapLocation' since it's now useless")
+    snapLocation.deleteRecursively()
+    l.info("Successfully cleared snapshot directory")
+}
+
+private fun rollbackSnapshot(snapLocation: Path, domain: Path) {
+    val repo = domain.resolve("./documentation/repo").toAbsolutePath()
+    val lang = domain.resolve("./lang").toAbsolutePath()
+    val repoSnapshot = snapLocation.resolve("./repo").toAbsolutePath()
+    val langSnapshot = snapLocation.resolve("./lang").toAbsolutePath()
+
+    l.info("Performing snapshot rollback from '$repoSnapshot' to '$repo'")
+    if (Files.exists(repo)) clearRepository(domain)
+    try { Files.createDirectories(repo) } catch (expected: IOException) {}
+    repoSnapshot.copyRecursivelyTo(repo, StandardCopyOption.REPLACE_EXISTING)
+
+    l.info("Performing snapshot rollback from '$langSnapshot' to '$lang'")
+    if (Files.exists(lang)) lang.deleteRecursively()
+    try { Files.createDirectories(lang) } catch (expected: IOException) {}
+    langSnapshot.copyRecursivelyTo(lang, StandardCopyOption.REPLACE_EXISTING)
+
+    try { removeSnapshot(snapLocation) } catch (e: Exception) { l.warn("Unable to delete old snapshot!", e) }
+
+    l.info("Successfully rolled back to latest snapshot")
+}
+
+private fun Path.copyRecursivelyTo(destination: Path, vararg copyOptions: CopyOption) {
+    Files.walkFileTree(this, object : SimpleFileVisitor<Path>() {
+        override fun preVisitDirectory(dir: Path?, attrs: BasicFileAttributes?): FileVisitResult {
+            if (dir == null || attrs == null) return super.preVisitDirectory(dir, attrs)
+            try { Files.createDirectories(dir.transferOverTo(this@copyRecursivelyTo, destination)) } catch (ignored: IOException) {} // If something breaks, visitFile will break so...
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun visitFile(file: Path?, attrs: BasicFileAttributes?): FileVisitResult {
+            if (file == null || attrs == null) return super.visitFile(file, attrs)
+            Files.copy(file, file.transferOverTo(this@copyRecursivelyTo, destination), *copyOptions)
+            return super.visitFile(file, attrs)
+        }
+
+        private fun Path.transferOverTo(origin: Path, destination: Path) = destination.resolve(origin.relativize(this))
+    })
+}
+
+private fun Path.deleteRecursively() {
+    Files.walkFileTree(this, object : SimpleFileVisitor<Path>() {
+        override fun postVisitDirectory(dir: Path?, exc: IOException?): FileVisitResult {
+            if (exc != null) throw exc
+            if (dir == null) return super.postVisitDirectory(dir, exc)
+            dir.deleteSafely()
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun visitFile(file: Path?, attrs: BasicFileAttributes?): FileVisitResult {
+            if (file == null || attrs == null) return super.visitFile(file, attrs)
+            file.deleteSafely()
+            return FileVisitResult.CONTINUE
+        }
+    })
+}
+
 private fun Path.deleteSafely() = try { Files.delete(this) } catch (e: IOException) { l.error("Unable to delete '$this' due to '${e::class.qualifiedName}: ${e.message}'") }
